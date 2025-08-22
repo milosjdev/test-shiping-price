@@ -92,13 +92,6 @@ const data = {
       heavy: 0,
     },
     {
-      name: "Equipos ligeros",
-      value: "equipos_ligeros",
-      shipping_price: 50,
-      installation_price: 0,
-      heavy: 0,
-    },
-    {
       name: "Kit Rx portatil",
       value: "kit_rx_portatil",
       shipping_price: 2241,
@@ -147,6 +140,7 @@ const data = {
       shipping_day: 3,
     },
     { name: "Bolivar", value: "bolivar", distance: 1207, shipping_day: 3 },
+    { name: "Other", value: "other", distance: 0, shipping_day: 0 },
   ],
   vehicle: [
     { name: "Camion", value: "camion", price: 1 },
@@ -154,7 +148,36 @@ const data = {
     { name: "Berlingo", value: "berlingo", price: 0.5 },
     { name: "MRW", value: "mrw", price: 0.05 },
   ],
+  extra: [
+    { name: "load_lift", price: 300 },
+    { name: "ferry", price: 300 },
+  ],
 };
+
+let selectedVehicle,
+  selectedState,
+  stateChoices,
+  vehicleChoices,
+  categoryChoices;
+const ferryCheckbox = document.getElementById("ferry");
+const loadLiftCheckbox = document.getElementById("load_lifter");
+const installationCheckbox = document.getElementById("installation");
+const distanceInput = document.getElementById("distance");
+
+distanceInput.parentElement.style.display = "none";
+
+function getShippingDay(distance) {
+  if (distance === 0) return 0;
+  if (distance > 0 && distance <= 300) {
+    return 1;
+  } else if (distance > 300 && distance <= 515) {
+    return 2;
+  } else if (distance > 515 && distance <= 1250) {
+    return 3;
+  } else {
+    return -1; // or throw error if out of range
+  }
+}
 
 function populateSelect(id, options, placeholder) {
   const select = document.getElementById(id);
@@ -164,62 +187,236 @@ function populateSelect(id, options, placeholder) {
     o.textContent = opt.name;
     select.appendChild(o);
   });
-  new Choices(select, {
+
+  const choices = new Choices(select, {
     removeItemButton: id === "categories",
     searchEnabled: true,
     placeholderValue: placeholder,
     searchPlaceholderValue: "Search",
+    shouldSort: false,
   });
+  if (id === "state") stateChoices = choices;
+  if (id === "vehicle") vehicleChoices = choices;
+  if (id === "categories") categoryChoices = choices;
 }
 
 populateSelect("state", data.state, "Select a state");
 populateSelect("vehicle", data.vehicle, "Select a vehicle");
 populateSelect("categories", data.category, "Select categories");
 
+// Auto-enable ferry for Nueva Esparta
+document.getElementById("state").addEventListener("change", function () {
+  selectedState = this.value;
+  const distanceElement = distanceInput.parentElement;
+
+  if (selectedState === "other") {
+    distanceElement.style.display = "flex";
+  } else {
+    distanceElement.style.display = "none";
+  }
+
+  if (selectedVehicle === "mrw") {
+    ferryCheckbox.checked = false;
+    ferryCheckbox.disabled = true;
+    loadLiftCheckbox.checked = false;
+    loadLiftCheckbox.disabled = true;
+  } else {
+    if (this.value === "nueva_esparta") {
+      ferryCheckbox.checked = true;
+      ferryCheckbox.disabled = true;
+    } else {
+      ferryCheckbox.checked = false;
+      ferryCheckbox.disabled = false;
+    }
+  }
+});
+
+// --- Restriction Logic ---
+document.getElementById("vehicle").addEventListener("change", function () {
+  selectedVehicle = this.value;
+  if (selectedVehicle === "mrw") {
+    // MRW only allows categories with heavy === 1
+    categoryChoices.clearStore();
+    categoryChoices.setChoices(
+      data.category.map((c) => ({
+        value: c.value,
+        label: c.name,
+        disabled: c.heavy !== 0,
+      })),
+      "value",
+      "label",
+      true
+    );
+    ferryCheckbox.checked = false;
+    ferryCheckbox.disabled = true;
+    loadLiftCheckbox.checked = false;
+    loadLiftCheckbox.disabled = true;
+  } else {
+    // Restore all categories
+    categoryChoices.clearStore();
+    categoryChoices.setChoices(
+      data.category.map((c) => ({
+        value: c.value,
+        label: c.name,
+        disabled: c.heavy == 0,
+      })),
+      "value",
+      "label",
+      true
+    );
+    if (selectedState === "nueva_esparta") {
+      ferryCheckbox.checked = true;
+      ferryCheckbox.disabled = true;
+    } else {
+      ferryCheckbox.checked = false;
+      ferryCheckbox.disabled = false;
+    }
+    loadLiftCheckbox.checked = false;
+    loadLiftCheckbox.disabled = false;
+  }
+});
+
+document.getElementById("categories").addEventListener("change", function () {
+  const selected = [...this.selectedOptions].map((o) => o.value);
+  const selectedCats = data.category.filter((c) => selected.includes(c.value));
+  if (selectedCats.some((c) => c.heavy === 0)) {
+    // If heavy==1 is selected → only MRW allowed
+    vehicleChoices.clearStore();
+    vehicleChoices.setChoices(
+      data.vehicle.map((v) => ({
+        value: v.value,
+        label: v.name,
+        // disabled: v.value !== "mrw",
+      })),
+      "value",
+      "label",
+      true
+    );
+    vehicleChoices.setChoiceByValue("mrw");
+  } else {
+    // Restore all vehicles
+    vehicleChoices.clearStore();
+    vehicleChoices.setChoices(
+      data.vehicle.map((v) => ({
+        value: v.value,
+        label: v.name,
+        // disabled: v.value === "mrw",
+      })),
+      "value",
+      "label",
+      true
+    );
+    vehicleChoices.setChoiceByValue(selectedVehicle);
+  }
+});
+
+// --- Calculation ---
 function calculate() {
+  let totalCost = 0;
+  let viaticoCost = 0;
   const stateVal = document.getElementById("state").value;
   const vehicleVal = document.getElementById("vehicle").value;
   const selectedCats = [
     ...document.getElementById("categories").selectedOptions,
   ].map((o) => o.value);
-  const includeInstall = document.getElementById("installation").checked;
+  const includeInstall = installationCheckbox.checked;
+  const includeLoadLift = loadLiftCheckbox.checked;
+  const includeFerry = ferryCheckbox.checked;
 
   if (!stateVal || !vehicleVal || selectedCats.length === 0) {
     alert("Please select state, vehicle, and at least one category.");
     return;
   }
 
+  if (stateVal === "other" && getShippingDay(distanceInput.value) === -1) {
+    alert("Please enter a valid distance (0-1250 km).");
+  }
+
   const state = data.state.find((s) => s.value === stateVal);
   const vehicle = data.vehicle.find((v) => v.value === vehicleVal);
 
-  let viaticoCost =
-    state.shipping_day === 1
-      ? 160
-      : state.shipping_day === 2
-      ? 190
-      : state.shipping_day === 3
-      ? 250
-      : 0;
+  if (vehicle.value === "mrw") {
+    viaticoCost = 0;
+  } else {
+    // if state is "other" -> use distance-based calculation
+    if (state.value === "other") {
+      const dist = parseFloat(distanceInput.value) || 0;
+      const shippingDay = getShippingDay(dist);
+
+      viaticoCost =
+        shippingDay === 1
+          ? 160
+          : shippingDay === 2
+          ? 190
+          : shippingDay === 3
+          ? 250
+          : 0;
+    } else {
+      // use predefined state shipping_day
+      viaticoCost =
+        state.shipping_day === 1
+          ? 160
+          : state.shipping_day === 2
+          ? 190
+          : state.shipping_day === 3
+          ? 250
+          : 0;
+    }
+  }
 
   let multiplier = vehicle.value === "mrw" ? 1 : 2;
 
-  let resultsHTML = `<h3>Shipping cost for ${state.name} with ${vehicle.name}</h3><div class="shipping_result">`;
+  let resultsHTML = `<div class="shipping_result">
+                        <div class="shipping_result_row">
+                          <text>Estimated Distance:</text>
+                          <text>${
+                            state.value === "other"
+                              ? distanceInput.value
+                              : state.distance
+                          } km
+                          </text>
+                        </div>
+                        <div class="shipping_result_row">
+                          <text>Shipping Method:</text>
+                          <text>${vehicle.name}</text>
+                        </div>
+                        <div class="shipping_result_row">
+                          <text>Estimated Viatic Days:</text>
+                          <text>${
+                            state.value === "other"
+                              ? getShippingDay(distanceInput.value)
+                              : state.shipping_day
+                          }${state.shipping_day < 2 ? "Day" : "Days"}
+                          </text>
+                        </div>
+                        <div class="divider">
+                      </div>`;
   selectedCats.forEach((catVal) => {
     const cat = data.category.find((c) => c.value === catVal);
     let cost =
       cat.shipping_price +
-      state.distance * vehicle.price * multiplier +
+      (state.value === "other" ? distanceInput.value : state.distance) *
+        vehicle.price *
+        multiplier +
       viaticoCost;
-
-    if (includeInstall) {
-      cost += cat.installation_price;
-    }
-
-    resultsHTML += `<div class="shipping_result_row"><text>${
-      cat.name
-    }:</text> <text>${cost.toFixed(2)} VES</text></div>`;
+    if (includeInstall) cost += cat.installation_price;
+    if (includeLoadLift)
+      cost += data.extra.find((e) => e.name === "load_lift").price;
+    if (includeFerry) cost += data.extra.find((e) => e.name === "ferry").price;
+    totalCost += cost;
+    resultsHTML += `<div class="shipping_result_row">
+                      <text>${cat.name}:</text> 
+                      <text>${cost.toFixed(2)} USD</text>
+                    </div>`;
   });
-  resultsHTML += "</div>";
+  resultsHTML += `<div class="divider">
+                </div>
+                <div class="shipping_result_row">
+                  <text>Estimated Total Cost:</text>
+                  <text>${totalCost.toFixed(2)} USD
+                  </text>
+                </div>
+              </div>`;
   document.getElementById("results").innerHTML = resultsHTML;
   document.getElementById("results").style.display = "block";
 }

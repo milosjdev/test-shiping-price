@@ -14,16 +14,15 @@
       <h1>Shipping Calculator</h1>
 
       <div class="form-group">
-        <label for="address">Address:</label>
+        <label for="address">Distance in km:</label>
         <input
-          type="text"
-          id="address"
-          class="address"
-          placeholder="Type your address"
+          type="number"
+          id="distance"
+          class="distance"
+          placeholder="Type distance in km"
           autocomplete="off"
         />
       </div>
-
       <div class="form-group">
         <label for="state">Select State:</label>
         <select id="state"></select>
@@ -41,8 +40,18 @@
 
       <!-- ✅ New Checkbox -->
       <div class="form-group">
-        <label for="installation">Installation Cost:</label>
+        <label for="installation">Installation:</label>
         <input type="checkbox" id="installation" class="checkbox" />
+      </div>
+
+      <div class="form-group">
+        <label for="load_lifter">Load lifter:</label>
+        <input type="checkbox" id="load_lifter" class="checkbox" />
+      </div>
+
+      <div class="form-group">
+        <label for="Ferry">Ferry:</label>
+        <input type="checkbox" id="ferry" class="checkbox" />
       </div>
 
       <button class="calc_btn" onclick="calculate()">Calculate</button>
