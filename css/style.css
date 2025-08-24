@@ -92,6 +92,16 @@ label {
   background-color: #e0e0e0;
   margin: 8px 0;
 }
+.warning_for_distance {
+  display: flex;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  border: 2px solid #d3bd5d;
+  background-color: #ffe680;
+  font-weight: 600;
+  font-style: italic;
+}
 /* Responsive */
 @media (min-width: 768px) {
   .main {

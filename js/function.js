@@ -366,31 +366,37 @@ function calculate() {
 
   let multiplier = vehicle.value === "mrw" ? 1 : 2;
 
-  let resultsHTML = `<div class="shipping_result">
-                        <div class="shipping_result_row">
-                          <text>Estimated Distance:</text>
-                          <text>${
-                            state.value === "other"
-                              ? distanceInput.value
-                              : state.distance
-                          } km
-                          </text>
-                        </div>
-                        <div class="shipping_result_row">
-                          <text>Shipping Method:</text>
-                          <text>${vehicle.name}</text>
-                        </div>
-                        <div class="shipping_result_row">
-                          <text>Estimated Viatic Days:</text>
-                          <text>${
-                            state.value === "other"
-                              ? getShippingDay(distanceInput.value)
-                              : state.shipping_day
-                          }${state.shipping_day < 2 ? "Day" : "Days"}
-                          </text>
-                        </div>
-                        <div class="divider">
-                      </div>`;
+  let resultsHTML =
+    (distanceInput.value && distanceInput.value > 700) || state.distance > 700
+      ? `<div class="shipping_result">
+          <div class="warning_for_distance">It is recommended to use air transport instead of ground
+            vehicles.
+          </div>`
+      : `<div class="shipping_result">`;
+  resultsHTML += `<div class="shipping_result_row">
+                    <text>Estimated Distance:</text>
+                    <text>${
+                      state.value === "other"
+                        ? distanceInput.value
+                        : state.distance
+                    } km
+                    </text>
+                  </div>
+                  <div class="shipping_result_row">
+                    <text>Shipping Method:</text>
+                    <text>${vehicle.name}</text>
+                  </div>
+                  <div class="shipping_result_row">
+                    <text>Estimated Viatic Days:</text>
+                    <text>${
+                      state.value === "other"
+                        ? getShippingDay(distanceInput.value)
+                        : state.shipping_day
+                    }${state.shipping_day < 2 ? "Day" : "Days"}
+                    </text>
+                  </div>
+                  <div class="divider">
+                </div>`;
   selectedCats.forEach((catVal) => {
     const cat = data.category.find((c) => c.value === catVal);
     let cost =
